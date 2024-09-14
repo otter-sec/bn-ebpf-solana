@@ -89,7 +89,7 @@ class SolanaView(BinaryView):
         
         # Add LOAD segments
         for s in p.segments:
-            if s.type == lief.ELF.SEGMENT_TYPES.LOAD:
+            if s.type == lief.ELF.Segment.TYPE.LOAD:
                 self.add_auto_segment((1 << 32) + s.virtual_address, s.virtual_size, s.physical_address, s.physical_size, int(s.flags))
 
         self.add_auto_segment(2 << 32, 0x8000, 0, 0, SegmentFlag.SegmentReadable | SegmentFlag.SegmentWritable)
@@ -108,7 +108,7 @@ class SolanaView(BinaryView):
         extern_map = {}
         curr_extern = 0
         for s in p.symbols:
-            if s.type == lief.ELF.SYMBOL_TYPES.NOTYPE and s.binding == lief.ELF.SYMBOL_BINDINGS.GLOBAL:
+            if s.type == lief.ELF.Symbol.TYPE.NOTYPE and s.binding == lief.ELF.Symbol.BINDING.GLOBAL:
                 # Skip duplicates
                 if s.name in extern_map:
                     continue
