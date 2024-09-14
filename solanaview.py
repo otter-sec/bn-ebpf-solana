@@ -79,6 +79,9 @@ class SolanaView(BinaryView):
         for k in info.types:
             t = info.types[k]
             self.define_type(str(k), str(k), t)
+    
+    def perform_get_address_size(self):
+        return 8
 
     def init(self):
         print('init')
