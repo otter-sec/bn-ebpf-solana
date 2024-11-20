@@ -2,6 +2,8 @@
 import os
 import pathlib
 
+from lief.ELF import Relocation
+
 from binaryninja import BinaryView, Architecture, SegmentFlag, SectionSemantics, Symbol, SymbolType, Platform
 import lief
 
@@ -148,7 +150,7 @@ class SolanaView(BinaryView):
         for r in p.dynamic_relocations:
             addr = r.address + (1 << 32)
 
-            if r.type == 8:
+            if r.type == Relocation.TYPE.BPF_64_64:
                 lo = int.from_bytes(self.read(addr + 4, 4), 'little')
                 hi = int.from_bytes(self.read(addr + 12, 4), 'little')
                 v = (hi << 32) + lo
@@ -162,7 +164,7 @@ class SolanaView(BinaryView):
                 hi = v >> 32
                 self.write(addr + 4, lo.to_bytes(4, 'little'))
                 self.write(addr + 12, hi.to_bytes(4, 'little'))
-            elif r.type == 10:
+            elif r.type == Relocation.TYPE.BPF_64_32:
                 if r.symbol.is_function:
                     # BPF Function
                     target = r.symbol.value + (1 << 32)
