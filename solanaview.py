@@ -136,7 +136,7 @@ class SolanaView(BinaryView):
                 if s.name in FUNCTION_SIGS:
                     f = self.get_function_at(pos)
                     if f is not None:
-                        f.function_type = FUNCTION_SIGS[s.name]
+                        f.type = FUNCTION_SIGS[s.name]
 
                 curr_extern += 1
 
