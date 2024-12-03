@@ -150,40 +150,41 @@ class SolanaView(BinaryView):
         for r in p.dynamic_relocations:
             addr = r.address + (1 << 32)
 
-            if r.type == Relocation.TYPE.BPF_64_64:
-                lo = int.from_bytes(self.read(addr + 4, 4), 'little')
-                hi = int.from_bytes(self.read(addr + 12, 4), 'little')
-                v = (hi << 32) + lo
+            try:
+                if r.type == Relocation.TYPE.BPF_64_64:
+                    lo = int.from_bytes(self.read(addr + 4, 4), 'little')
+                    hi = int.from_bytes(self.read(addr + 12, 4), 'little')
+                    v = (hi << 32) + lo
 
-                # if already relocated, bail
-                if v >= 0x100000000:
-                    continue
+                    # if already relocated, bail
+                    if v >= 0x100000000:
+                        continue
 
-                v += (1 << 32)
-                lo = v & 0xffffffff
-                hi = v >> 32
-                self.write(addr + 4, lo.to_bytes(4, 'little'))
-                self.write(addr + 12, hi.to_bytes(4, 'little'))
-            elif r.type == Relocation.TYPE.BPF_64_32:
-                if r.symbol.is_function:
-                    # BPF Function
-                    target = r.symbol.value + (1 << 32)
-                    off = (target - (addr + 8)) // 8
-                    if off < 0:
-                        off += 0x100000000
-                    self.write(addr + 4, off.to_bytes(4, 'little'))
-                else:
-                    # Syscall
-                    name = r.symbol.name
-                    if name in extern_map:
-                        idx = extern_map[name]
-                        pos = EXTERN_START + (idx * 16)
-                        self.write(addr + 4, pos.to_bytes(4, 'little'))
-                        self.write(addr + 1, bytes([2 << 4])) # Mark as absolute extern
-                        print('syscall @ ', hex(addr))
+                    v += (1 << 32)
+                    lo = v & 0xffffffff
+                    hi = v >> 32
+                    self.write(addr + 4, lo.to_bytes(4, 'little'))
+                    self.write(addr + 12, hi.to_bytes(4, 'little'))
+                elif r.type == Relocation.TYPE.BPF_64_32:
+                    if r.symbol.is_function:
+                        # BPF Function
+                        target = r.symbol.value + (1 << 32)
+                        off = (target - (addr + 8)) // 8
+                        if off < 0:
+                            off += 0x100000000
+                        self.write(addr + 4, off.to_bytes(4, 'little'))
                     else:
-                        print('Unhandled syscall: ', name)
-            else:
+                        # Syscall
+                        name = r.symbol.name
+                        if name in extern_map:
+                            idx = extern_map[name]
+                            pos = EXTERN_START + (idx * 16)
+                            self.write(addr + 4, pos.to_bytes(4, 'little'))
+                            self.write(addr + 1, bytes([2 << 4])) # Mark as absolute extern
+                            print('syscall @ ', hex(addr))
+                        else:
+                            print('Unhandled syscall: ', name)
+            except Exception as e:
                 print('Unhandled relocation type: ', r)
 
         # Apply function symbols.
