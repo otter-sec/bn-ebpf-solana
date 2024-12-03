@@ -15,7 +15,7 @@ See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-rever
 
 Requirements:
 ```
-pip install lief
+pip install --index-url https://lief.s3-website.fr-par.scw.cloud/latest lief==0.16.0.dev0
 ```
 
 Copy this directory into your Binary Ninja plugins folder and restart.
