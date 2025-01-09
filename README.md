@@ -10,6 +10,8 @@ Requirements:
 pip install lief
 ```
 
+Currently tested on `lief@0.16.2-d4900dab`
+
 See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-reverse-engineering-solana/).
 
 **Instruction lifting!**
