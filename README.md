@@ -3,6 +3,13 @@
 
 A pure-python Binary Ninja plugin for Solana EBPF.
 
+## Installation
+
+Requirements:
+```
+pip install lief
+```
+
 See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-reverse-engineering-solana/).
 
 **Instruction lifting!**
@@ -11,12 +18,7 @@ See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-rever
 **Solana SDK Structures!**
 ![](/assets/struct.png)
 
-## Installation
 
-Requirements:
-```
-pip install --index-url https://lief.s3-website.fr-par.scw.cloud/latest lief==0.16.0.dev0
-```
 
 Copy this directory into your Binary Ninja plugins folder and restart.
 
