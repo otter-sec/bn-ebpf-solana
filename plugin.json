@@ -25,7 +25,12 @@
         "lief"
       ]
     },
+    "installinstructions": {
+        "Darwin": "",
+        "Windows": "",
+        "Linux": ""
+    },
     "version": "1.0.1",
     "author": "OtterSec LLC",
-    "minimumBinaryNinjaVersion": 3164
+    "minimumbinaryninjaversion": 3164
 }
