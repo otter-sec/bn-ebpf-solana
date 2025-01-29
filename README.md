@@ -5,10 +5,11 @@ A pure-python Binary Ninja plugin for Solana EBPF.
 
 ## Installation
 
-Requirements:
-```
-pip install lief
-```
+Clone this [repo](https://github.com/otter-sec/bn-ebpf-solana) in your Binja `plugins` folder, located in the [user folder](https://docs.binary.ninja/guide/index.html#user-folder).
+
+Now install the requirements :
+- either by running `Install python3 module` in Binja's `command palette` (Ctrl + P) and install `lief`
+- or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing `lief` within the `venv` enviroment
 
 Currently tested on `lief@0.16.2-d4900dab`
 
@@ -35,4 +36,21 @@ Copy this directory into your Binary Ninja plugins folder and restart.
 _TODO:_
 
 - **Solana SDK Signature Matching**: Automatically match common Solana SDK functions.
+
+## Debugging
+
+```
+[ScriptingProvider] ModuleNotFoundError: No module named 'lief'
+```
+
+Is `lief` installed?
+
+Run the following in the Binja python console
+
+```python
+import lief
+lief.__version__
+```
+
+If you get an error, refer to the **Installation** section
 
