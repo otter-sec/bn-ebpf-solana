@@ -9,7 +9,11 @@ Clone this [repo](https://github.com/otter-sec/bn-ebpf-solana) in your Binja `pl
 
 Now install the requirements :
 - either by running `Install python3 module` in Binja's `command palette` (Ctrl + P) and install `lief`
-- or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing `lief` within the `venv` enviroment
+- or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing `lief` within the `venv` enviroment using:
+
+```
+pip install lief
+```
 
 Currently tested on `lief@0.16.2-d4900dab`
 
