@@ -4,6 +4,10 @@ A pure-python Binary Ninja plugin for Solana EBPF.
 
 ## Installation
 
+Available in Binja's plugin manager inside of `Plugins > Manage Plugins`
+
+## Manual installation
+
 Clone this [repo](https://github.com/otter-sec/bn-ebpf-solana) in your Binja `plugins` folder, located in the [user folder](https://docs.binary.ninja/guide/index.html#user-folder).
 
 Now install the requirements :
