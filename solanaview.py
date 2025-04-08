@@ -1,4 +1,3 @@
-
 import os
 import pathlib
 
@@ -6,12 +5,12 @@ from lief.ELF import Relocation
 
 from binaryninja import BinaryView, Architecture, SegmentFlag, SectionSemantics, Symbol, SymbolType, Platform
 import lief
-
+import rust_demangler  # Import rust_demangle for demangling
 
 FUNCTION_SIGS = {
     'abort': 'void abort() __noreturn',
     'sol_panic_': 'void sol_panic_(const char *file_str, int file_str_len, int line, int col) __noreturn',
-    'sol_log_': 'void sol_log_(char *message, int size)',
+    'sol_log_': 'void sol_log_(const char *message, int size)',
     'sol_log_64_': 'void sol_log_64_(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);',
     'sol_log_compute_units_': 'void sol_log_compute_units_();',
     'sol_log_pubkey': 'void sol_log_pubkey(SolPubkey *pk);',
@@ -36,6 +35,19 @@ FUNCTION_SIGS = {
     'sol_get_stack_height': 'uint64_t sol_get_stack_height();',
 }
 
+STRING_POINTER_SYSCALLS = {
+    'sol_log_', 
+    'sol_panic_',
+    'sol_log_pubkey',
+    'sol_memcpy_',
+    'sol_memmove_',
+    'sol_memcmp_',
+    'sol_memset_',
+    'sol_set_return_data',
+    'sol_get_return_data',
+    'sol_log_data',
+}
+
 EXTERN_START = 0x1000
 EXTERN_SIZE = 0x2000
 
@@ -53,6 +65,21 @@ class SolanaView(BinaryView):
         self.data = data
 
         self.extern_data = [0] * EXTERN_SIZE
+        # Keep track of syscalls for patching
+        self.syscalls = {}
+
+    def demangle_rust_symbol(self, mangled_name):
+        """
+        Demangle a Rust symbol name to make it more readable.
+        """
+        try:
+            if mangled_name.startswith("_ZN"):
+                demangled = "::".join(str(rust_demangler.demangle(mangled_name)).split("::")[0:-1])
+                return demangled
+            return mangled_name
+        except Exception as e:
+            print(f"Error demangling {mangled_name}: {e}")
+            return mangled_name
 
     def perform_read(self, addr: int, length: int) -> bytes:
         # Override with custom extern data.
@@ -106,7 +133,6 @@ class SolanaView(BinaryView):
         self.add_user_section("input", 4 << 32, 0x8000, SectionSemantics.ReadWriteDataSectionSemantics)
 
         # Special extern section with syscalls.
-        # self.add_auto_segment(EXTERN_START, EXTERN_SIZE, 0, EXTERN_SIZE, SegmentFlag.SegmentExecutable | SegmentFlag.SegmentReadable)
         self.add_auto_section('extern', EXTERN_START, EXTERN_SIZE, SectionSemantics.ReadOnlyCodeSectionSemantics)
 
         # Map extern symbols to index.
@@ -146,6 +172,15 @@ class SolanaView(BinaryView):
             if s.size != 0:
                 self.add_user_section(s.name, (1 << 32) + s.offset, s.size, SectionSemantics.ReadOnlyCodeSectionSemantics)
 
+        # Track syscall locations and types
+        self.syscall_info = {}
+        for name, idx in extern_map.items():
+            pos = EXTERN_START + (idx * 16)
+            self.syscall_info[name] = {
+                'address': pos,
+                'needs_pointer_adjustment': name in STRING_POINTER_SYSCALLS
+            }
+
         # Apply relocations.
         for r in p.dynamic_relocations:
             addr = r.address + (1 << 32)
@@ -181,20 +216,78 @@ class SolanaView(BinaryView):
                             pos = EXTERN_START + (idx * 16)
                             self.write(addr + 4, pos.to_bytes(4, 'little'))
                             self.write(addr + 1, bytes([2 << 4])) # Mark as absolute extern
-                            print('syscall @ ', hex(addr))
+                            print(f'syscall @ {hex(addr)} - {name}')
+                            
+                            # Store syscall location for later patching
+                            self.syscalls[addr] = {
+                                'name': name,
+                                'needs_pointer_adjustment': name in STRING_POINTER_SYSCALLS
+                            }
                         else:
                             print('Unhandled syscall: ', name)
             except Exception as e:
                 print('Unhandled relocation type: ', r)
 
-        # Apply function symbols.
+        # Apply function symbols with demangling
         for s in p.symbols:
             if s.is_function:
-                # BPF Function
+                demangled_name = self.demangle_rust_symbol(s.name)
+                
                 self.define_auto_symbol(Symbol(
                     SymbolType.FunctionSymbol,
                     s.value + (1 << 32),
-                    s.name
+                    demangled_name
                 ))
 
+        self.fix_all_pointers()
+
         return True
+
+    def fix_all_pointers(self):
+        """
+        Scan through all code and fix any potential pointers that are below 0x100000000
+        by adding the program base offset (1 << 32).
+        """
+        prog_base = 1 << 32
+        total_fixed = 0
+        
+        for segment in self.segments:
+            # Skip the extern segment
+            if segment.start == EXTERN_START:
+                continue
+                
+            start = segment.start
+            end = segment.end
+            
+            print(f"Scanning segment: 0x{start:x} - 0x{end:x}")
+            
+            addr = start
+            while addr < end - 16:  # Need at least 2 instructions (16 bytes)
+                instr = self.read(addr, 8)
+                
+                #if its a load
+                if instr[0] & 0xFF == 0x18:
+                    # Get the current immediate value
+                    imm_lo = int.from_bytes(self.read(addr + 4, 4), 'little')
+                    
+                    next_instr = self.read(addr + 8, 8)
+                    imm_hi = int.from_bytes(self.read(addr + 12, 4), 'little')
+                    
+                    full_imm = (imm_hi << 32) | imm_lo
+                    
+                    #if unrelocated
+                    if 0 < full_imm < (1 << 32):
+                        new_imm = full_imm + prog_base
+                        new_imm_lo = new_imm & 0xFFFFFFFF
+                        new_imm_hi = new_imm >> 32
+                        
+                        # Update the instructions
+                        self.write(addr + 4, new_imm_lo.to_bytes(4, 'little'))
+                        self.write(addr + 12, new_imm_hi.to_bytes(4, 'little'))
+                        
+                        print(f"Fixed potential pointer at 0x{addr:x}: 0x{full_imm:x} -> 0x{new_imm:x}")
+                        total_fixed += 1
+                
+                addr += 8  # next instr
+        
+        print(f"Total pointers fixed: {total_fixed}")
