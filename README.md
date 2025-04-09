@@ -13,8 +13,8 @@ This is only needed if you wish to tinker with the plugin to modify it.
 Clone this [repo](https://github.com/otter-sec/bn-ebpf-solana) in your Binja `plugins` folder, located in the [user folder](https://docs.binary.ninja/guide/index.html#user-folder).
 
 Now install the requirements :
-- either by running `Install python3 module` in Binja's `command palette` (Ctrl + P) and install `lief`
-- or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing `lief` within the `venv` enviroment using:
+- either by running `Install python3 module` in Binja's `command palette` (Ctrl + P) and install `lief`, aswell as `rust_demangler`
+- or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing `lief` and `rust_demangler` within the `venv` enviroment using:
 
 ```
 pip install lief rust_demangler
