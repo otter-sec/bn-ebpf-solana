@@ -57,7 +57,8 @@ class SolanaView(BinaryView):
 
     @classmethod
     def is_valid_for_data(self, data):
-        return data.read(0,4) == b'\x7fELF' and data.read(0x12, 2) == b'\xf7\x00'
+        # check for both ebpf and sbpf
+        return data.read(0,4) == b'\x7fELF' and (data.read(0x12, 2) == b'\xf7\x00' or data.read(0x12, 2) == b'\x07\x01')
 
     def __init__(self, data):
         BinaryView.__init__(self, parent_view=data, file_metadata=data.file)
@@ -74,6 +75,9 @@ class SolanaView(BinaryView):
         """
         try:
             if mangled_name.startswith("_ZN"):
+                #remove this
+                # https://rust-lang.github.io/rfcs/2603-rust-symbol-name-mangling-v0.html#requirements-for-a-symbol-mangling-scheme
+                # for readability
                 demangled = "::".join(str(rust_demangler.demangle(mangled_name)).split("::")[0:-1])
                 return demangled
             return mangled_name
