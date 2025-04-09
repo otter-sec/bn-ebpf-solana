@@ -17,7 +17,7 @@ Now install the requirements :
 - or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing `lief` within the `venv` enviroment using:
 
 ```
-pip install lief
+pip install lief rust_demangler
 ```
 
 Currently tested on `lief@0.16.2-d4900dab`
