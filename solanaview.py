@@ -4,8 +4,45 @@ import pathlib
 from lief.ELF import Relocation
 
 from binaryninja import BinaryView, Architecture, SegmentFlag, SectionSemantics, Symbol, SymbolType, Platform
+import binaryninja as bn
 import lief
 import rust_demangler  # Import rust_demangle for demangling
+import re
+
+# were sure to have an entry func, and we find the id in the first memcmp
+def find_entry_memcmp_second_arg(bv):
+    for function in bv.functions:
+        if function.name.endswith("entry"):
+            # Get the HLIL
+            hlil = function.hlil
+            
+            for block in hlil:
+                for instruction in block:
+                    memcmp_call = find_memcmp_call(instruction)
+                    if(memcmp_call == None):
+                        continue
+
+                    return bv.read(memcmp_call.params[1].constant, 32)
+    
+    return None
+
+def find_memcmp_call(instruction):
+    # Check if instruction is a call
+    if instruction.operation == bn.HighLevelILOperation.HLIL_CALL:
+        if instruction.dest.operation == bn.HighLevelILOperation.HLIL_CONST_PTR:
+            target_func = instruction.dest.constant
+            target_name = instruction.function.view.get_function_at(target_func)
+            if target_name and target_name.name == "memcmp":
+                return instruction
+            
+    # Recursively check child expressions
+    for operand in instruction.operands:
+        if isinstance(operand, bn.highlevelil.HighLevelILInstruction):
+            result = find_memcmp_call(operand)
+            if result:
+                return result
+    
+    return None
 
 FUNCTION_SIGS = {
     'abort': 'void abort() __noreturn',
@@ -54,10 +91,12 @@ EXTERN_SIZE = 0x2000
 class SolanaView(BinaryView):
     name = 'Solana'
     long_name = 'Solana'
+    detected_id = None
 
     @classmethod
     def is_valid_for_data(self, data):
         # check for both ebpf and sbpf
+        #print("ID: ", data.read(0x24fc7, 32))
         return data.read(0,4) == b'\x7fELF' and (data.read(0x12, 2) == b'\xf7\x00' or data.read(0x12, 2) == b'\x07\x01')
 
     def __init__(self, data):
@@ -68,6 +107,10 @@ class SolanaView(BinaryView):
         self.extern_data = [0] * EXTERN_SIZE
         # Keep track of syscalls for patching
         self.syscalls = {}
+
+    def detect_id(self):
+        self.detected_id =  find_entry_memcmp_second_arg(self) 
+        print("ID: ", self.detected_id)
 
     def demangle_rust_symbol(self, mangled_name):
         """
@@ -245,6 +288,8 @@ class SolanaView(BinaryView):
 
         self.fix_all_pointers()
 
+        self.add_analysis_completion_event(self.detect_id)
+
         return True
 
     def fix_all_pointers(self):
@@ -295,3 +340,5 @@ class SolanaView(BinaryView):
                 addr += 8  # next instr
         
         print(f"Total pointers fixed: {total_fixed}")
+
+
