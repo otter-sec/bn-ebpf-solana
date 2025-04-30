@@ -42,7 +42,7 @@ from solana.rpc.async_api import AsyncClient
 from .mcp_utils import *
 
 DEFAULT_RPC = "https://api.mainnet-beta.solana.com"
-SERVER_PATH = Path(__file__) / "../../../repositories/community/plugins/fosdickio_binary_ninja_mcp" / "bridge" / "binja_mcp_bridge.py"
+SERVER_PATH = Path(__file__).parent.parent / "binary_ninja_mcp" / "bridge" / "binja_mcp_bridge.py"
 #needs to be set
 CLAUDE      = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
