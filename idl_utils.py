@@ -22,7 +22,10 @@ def fetch_idl_anchorpy(bv, func):
     pid = Pubkey(collect_load_cmps(bv, func))
 
     provider = Provider(AsyncClient(DEFAULT_RPC), None)    
-    idl      = asyncio.run(Program.fetch_idl(pid, provider))    # ← Anchor convenience
+    try:
+        idl      = asyncio.run(Program.fetch_idl(pid, provider))    # ← Anchor convenience
+    except Exception as _:
+        idl = None
 
     if idl is None:
         return None
@@ -112,11 +115,6 @@ def find_memcmp_call(instruction):
                 return result
     
     return None
-
-
-def print_idl(bv, func):
-    pubkey = Pubkey(collect_load_cmps(bv, func))
-    print(asyncio.run(fetch_idl_raw(pubkey, DEFAULT_RPC)))
 
 async def fetch_idl_raw(pid: Pubkey, rpc: str):
     """Fetch, decompress and parse the IDL without Anchor helpers."""

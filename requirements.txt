@@ -2,4 +2,8 @@ lief
 anthropic
 fastmcp
 tenacity
-rust_demangler
+rust_demangler  
+pygments  
+anchorpy  
+solana  
+solders

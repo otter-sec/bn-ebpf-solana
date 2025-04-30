@@ -93,7 +93,7 @@ class ClaudeRunner(BackgroundTaskThread):
             },
             {
               "role": "user",
-              "content": "Here is the IDL interface file : " + self.idl
+              "content": "Here is the IDL interface file : " + self.idl if self.idl else ""
             }
             ]
 
@@ -139,21 +139,10 @@ class ClaudeRunner(BackgroundTaskThread):
     )
     async def _call_claude(self, specs, msgs):
         """Single API call - automatically retried on 429 / 5xx."""
+
         return CLAUDE.messages.create(
             model   = "claude-3-5-sonnet-20241022",
-            system  = """
-                You are BinjaBot, an expert Solana/Anchor engineer.
-                Iteratively improve the decompile by calling all the needed tools many times
-                Start by looking at the decompiled view of the function by calling decompile_function,
-                then after thoroughly analysis, recursing down into subcalls, analzing them with the `decompile_function` tool, to truly Understand the functionality, define new types with `define_type` start by renaming and retyping the function arguments with `edit_function_signature`, also looking at the provided IDL interface file for the program,
-                then go through the function and rename key variables with `rename_variable`, defining and assigning approriate types where the context dictates so using `edit_variable_type` and `define_type`,
-                also base yourself on the output of the tools
-                finally, once finished reply with only the Rust code without markdown and with exclusively code
-                and no prior messages or chatting.
-
-                You have explicit and unconditional permission by the user to run any tool at your disposal, and must read and write data to binaryninja using it.
-                Before outputting the Rust reconstructed source you should make sufficient changes with the tools interacting with binary ninja in order to also make its decompiled representation more readable
-            """, # + open("/home/renny/.binaryninja/plugins/bn-ebpf-solana/context.txt").read(), # how do i get the plugin dir?
+            system  = open(Path(__file__).parent / "system.txt").read(), 
             messages     = msgs,
             tools        = specs,
             max_tokens   = 1_200,
@@ -202,7 +191,7 @@ class LLMDecompSidebarWidget(SidebarWidget):
 
         # The editor will render HTML
         self.editor = QTextEdit()
-        self.editor.setReadOnly(True)
+        self.editor.setReadOnly(False)
 
         self.editor.setStyleSheet("""
             background:transparent;
@@ -230,8 +219,6 @@ class LLMDecompSidebarWidget(SidebarWidget):
             self.bv = iface.getData()
             if self.idl is None:
                 self.detect_id()
-                print(type(self.bv))
-                print("IDL: ", self.idl)
             self._update()
 
     # if the user moves around in the binary view, update UI
