@@ -1,0 +1,5 @@
+lief
+anthropic
+fastmcp
+tenacity
+rust_demangler
