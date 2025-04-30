@@ -105,7 +105,11 @@ class ClaudeRunner(BackgroundTaskThread):
                 if not tool_calls:
                     final = "".join(b.text for b in reply.content if b.type == "text")
                     # claude is dumb and sometimes still inserts comments before code
-                    return final[final.index("pub fn"):]
+                    if "```" in final:
+                        return final[final.index("```"):]
+                    if "pub fn" in final:
+                        return final[final.index("pub fn"):]
+                    return final
 
                 # tool calls
                 results: list[Dict[str, Any]] = []
