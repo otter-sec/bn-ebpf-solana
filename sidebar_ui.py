@@ -1,5 +1,9 @@
 import os
-from binaryninja import BackgroundTaskThread, execute_on_main_thread
+from binaryninja import (
+    Settings,
+    BackgroundTaskThread,
+    execute_on_main_thread
+)
 from PySide6.QtCore import Qt, QRectF
 from PySide6.QtGui import QImage, QPainter, QFont, QColor
 from PySide6.QtWidgets import QTextEdit, QVBoxLayout
@@ -13,7 +17,7 @@ from pygments.formatters import HtmlFormatter
 import asyncio, json, os
 import asyncio, json
 from typing import Any, Dict
-from anthropic import Anthropic, RateLimitError, APIStatusError
+from anthropic import Anthropic, AuthenticationError, RateLimitError, APIStatusError
 from fastmcp import exceptions as mcp_exc
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
@@ -44,7 +48,16 @@ from .mcp_utils import *
 DEFAULT_RPC = "https://api.mainnet-beta.solana.com"
 SERVER_PATH = Path(__file__).parent.parent / "binary_ninja_mcp" / "bridge" / "binja_mcp_bridge.py"
 #needs to be set
-CLAUDE      = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+#settings
+
+settings = Settings()
+setting_props = properties = f'{{"title" : "Anthropic API Key", "description" : "Your Anthropic API key for LLM requests", "type" : "string", "default" : ""}}'
+settings.register_group("bn-ebpf-solana", "MCP settings")
+settings.register_setting(
+    "bn-ebpf-solana.anthropic_api_key",           # identifier
+    setting_props
+)
 
 class ClaudeRunner(BackgroundTaskThread):
     def __init__(self, bar):
@@ -61,8 +74,10 @@ class ClaudeRunner(BackgroundTaskThread):
 
         try:
             pretty_text = asyncio.run(self._extract_rust())
+
+        except* AuthenticationError as auth_exc:
+            pretty_text = f"Anthropic API key is invalid: {auth_exc}"
         except* Exception as exc:                       # irrecoverable
-            print(exc.exceptions)
             pretty_text = f"❌ Error while extracting Rust:\n"
             for e in exc.exceptions:
                 pretty_text += f"{e}\n"
@@ -71,7 +86,6 @@ class ClaudeRunner(BackgroundTaskThread):
             execute_on_main_thread(lambda: self.bar.update_ui_func(self.func, pretty_text))
 
     # ui stuff
-    
 
 
     #llm pipeline
@@ -79,13 +93,16 @@ class ClaudeRunner(BackgroundTaskThread):
         if not self.func:
             return ""
 
+        api_key = settings.get_string("bn-ebpf-solana.anthropic_api_key")
+
+        if not api_key.startswith("sk-"):
+            return "Please set your Anthropic API key in the plugin settings"
+
         # we rely on a forked version of the existing plugin to implement an mcp server
         # how do we reliably get its location?
         async with Client(PythonStdioTransport(SERVER_PATH)) as cli:
             tools = await cli.list_tools()
             specs = [mcp_to_anthropic(t) for t in tools]
-
-            print("CLAUDE IDL: ", self.idl)
 
             msgs: list[Dict[str, Any]] = [{
                 "role":    "user",
@@ -98,7 +115,7 @@ class ClaudeRunner(BackgroundTaskThread):
             ]
 
             for _ in range(50):                        # safety cap
-                reply = await self._call_claude(specs, msgs)
+                reply = await self._call_claude(specs, msgs, api_key)
                 tool_calls = [b for b in reply.content if b.type == "tool_use"]
 
                 # llm doesnt wanna call any tools anymore
@@ -141,10 +158,11 @@ class ClaudeRunner(BackgroundTaskThread):
         ),
         reraise=False,
     )
-    async def _call_claude(self, specs, msgs):
+    async def _call_claude(self, specs, msgs, api_key):
         """Single API call - automatically retried on 429 / 5xx."""
+        claude = Anthropic(api_key=api_key)
 
-        return CLAUDE.messages.create(
+        return claude.messages.create(
             model   = "claude-3-5-sonnet-20241022",
             system  = open(Path(__file__).parent / "system.txt").read(), 
             messages     = msgs,
@@ -160,7 +178,6 @@ class LLMDecompSidebarWidget(SidebarWidget):
         # analyze the entry func
         for function in self.bv.functions:
             if function.name.endswith("::entry") and "DebugList" not in function.name:
-                print("AAAAAAA")
                 self.idl = fetch_idl_anchorpy(self.bv, function)
 
 
