@@ -2,25 +2,34 @@
 
 A pure-python Binary Ninja plugin for Solana EBPF.
 
-## Installation
-
-Available in Binja's plugin manager inside of `Plugins > Manage Plugins`
-
-## Manual installation (advanced)
+## Manual installation (advanced, latest features)
 
 This is only needed if you wish to tinker with the plugin to modify it.
 
 Clone this [repo](https://github.com/otter-sec/bn-ebpf-solana) in your Binja `plugins` folder, located in the [user folder](https://docs.binary.ninja/guide/index.html#user-folder).
 
 Now install the requirements :
-- either by running `Install python3 module` in Binja's `command palette` (Ctrl + P) and install `lief`
-- or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing `lief` within the `venv` enviroment using:
+- either by running `Install python3 module` in Binja's `command palette` (Ctrl + P) and install the following modules
 
 ```
-pip install lief
+lief
+anthropic
+fastmcp
+tenacity
+rust_demangler  
+pygments  
+anchorpy  
+solana  
+solders
 ```
 
-Currently tested on `lief@0.16.2-d4900dab`
+- or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing the requirements.txt
+
+Also for the MCP integration to work please install `mcp` globally (outside the binja venv) like so:
+
+```
+pip install mcp
+```
 
 See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-reverse-engineering-solana/).
 
@@ -29,8 +38,6 @@ See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-rever
 
 **Solana SDK Structures!**
 ![](/assets/struct.png)
-
-
 
 Copy this directory into your Binary Ninja plugins folder and restart.
 
@@ -41,6 +48,14 @@ Copy this directory into your Binary Ninja plugins folder and restart.
 - **Solana ELF Relocations**: Solana-specific ELF relocations
 - **Syscall Function Signatures**: Full signatures for all of the Solana syscalls
 - **(partial) Solana SDK Types**: Type definitions for all Solana SDK objects. (fully complete for C, in-progress for Rust)
+
+### MCP integration
+
+In order to use the MCP integration please set up your anthropic api key in the settings under
+
+```
+MCP settings > Anthropic API Key
+```
 
 _TODO:_
 
