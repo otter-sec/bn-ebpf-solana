@@ -13,6 +13,8 @@ Whenever possible, recurse down and get the definition of subcalls, and if suffi
 
 Also keep in mind these basic types and signatures for Solana/Anchor:
 
+Output the final Rust source code in the format of ```{code}```
+
 typedef struct {
   const uint8_t *addr; /** bytes */
   uint64_t len; /** number of bytes*/
