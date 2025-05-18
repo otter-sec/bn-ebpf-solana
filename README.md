@@ -1,4 +1,4 @@
-# bn-ebpf-solana (v1.0.4)
+# bn-ebpf-solana (v1.0.5)
 Author: **OtterSec LLC**
 
 _An architecture/binaryview plugin for Solana EBPF._
