@@ -2,7 +2,7 @@
 
 A pure-python Binary Ninja plugin for Solana EBPF.
 
-## Manual installation (advanced, latest features)
+## Manual installation (advanced, latest features including MCP)
 
 This is only needed if you wish to tinker with the plugin to modify it.
 
@@ -30,6 +30,8 @@ Also for the MCP integration to work please install `mcp` globally (outside the 
 ```
 pip install mcp
 ```
+
+Make sure to also install [the MCP server](https://github.com/fosdickio/binary_ninja_mcp) using the same procedure by cloning from GitHub.
 
 See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-reverse-engineering-solana/).
 
