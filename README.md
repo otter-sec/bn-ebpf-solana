@@ -2,6 +2,10 @@
 
 A pure-python Binary Ninja plugin for Solana EBPF.
 
+## Regular install from plugin manager
+
+Be sure to install both `bn-ebpf-solana` and `binary_ninja_mcp` from the plugin manager
+
 ## Manual installation (advanced, latest features)
 
 This is only needed if you wish to tinker with the plugin to modify it.
