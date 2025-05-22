@@ -46,8 +46,18 @@ from solana.rpc.async_api import AsyncClient
 from .mcp_utils import *
 
 DEFAULT_RPC = "https://api.mainnet-beta.solana.com"
-SERVER_PATH = Path(__file__).parent.parent / "binary_ninja_mcp" / "bridge" / "binja_mcp_bridge.py"
-#needs to be set
+
+base_path = Path(__file__).parent.parent
+
+SERVER_PATH = next(
+    (mcp_dir / "bridge" / "binja_mcp_bridge.py"
+     for mcp_dir in base_path.glob("*binary_ninja_mcp")
+     if (mcp_dir / "bridge" / "binja_mcp_bridge.py").exists()),
+    None
+)
+
+if SERVER_PATH is None:
+    raise FileNotFoundError("Did you install binary_ninja_mcp via Git or the plugin manager?")
 
 #settings
 

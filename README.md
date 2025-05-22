@@ -31,6 +31,7 @@ Also for the MCP integration to work please install `mcp` globally (outside the 
 pip install mcp
 ```
 
+
 See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-reverse-engineering-solana/).
 
 **Instruction lifting!**
@@ -56,6 +57,9 @@ In order to use the MCP integration please set up your anthropic api key in the 
 ```
 MCP settings > Anthropic API Key
 ```
+
+You will now be able to use the side menu on the right, symbolized by an R. 
+Click on any function to start prompting the model to call MCP actions, and to ultimately display a Rust version in the side panel
 
 _TODO:_
 
