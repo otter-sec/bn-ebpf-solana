@@ -27,6 +27,7 @@ pygments
 anchorpy  
 solana  
 solders
+base58
 ```
 
 - or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing the requirements.txt
