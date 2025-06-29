@@ -27,7 +27,8 @@
             "pygments",
             "anchorpy",
             "solana",
-            "solders"
+            "solders",
+            "base58"
         ]
     },
     "installinstructions": {
