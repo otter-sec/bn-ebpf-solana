@@ -77,23 +77,37 @@ class ClaudeRunner(BackgroundTaskThread):
         self.idl = bar.idl
 
     def run(self):
-        """BackgroundTaskThread expects a *sync* function.
-        We spin up an event-loop just for this thread."""
-
+        """
+        BackgroundTaskThread entry-point.
+        • Talks to fast-mcp / Claude in a private event loop.
+        • If anything LLM-related fails, it prints a short notice instead of
+          killing the sidebar or Binary Ninja.
+        """
         pretty_text = ""
 
         try:
+            # actual async work
             pretty_text = asyncio.run(self._extract_rust())
 
-        except* AuthenticationError as auth_exc:
-            pretty_text = f"Anthropic API key is invalid: {auth_exc}"
-        except* Exception as exc:                       # irrecoverable
-            pretty_text = f"❌ Error while extracting Rust:\n"
-            for e in exc.exceptions:
-                pretty_text += f"{e}\n"
-            
+        # ───── expected user-side failures ───────────────────────────────────
+        except AuthenticationError as exc:
+            pretty_text = f"LLM disabled: bad Anthropic API key ({exc})"
+
+        except mcp_exc.McpError as exc:
+            pretty_text = f"LLM disabled: MCP bridge error ({exc})"
+
+        except RuntimeError as exc:          # client not connected, etc.
+            pretty_text = f"LLM disabled: {exc}"
+
+        # ───── any other unexpected crash ───────────────────────────────────
+        except Exception as exc:
+            pretty_text = f"LLM disabled: {type(exc).__name__}: {exc}"
+
+        # ───── always update the sidebar on UI thread ───────────────────────
         finally:
-            execute_on_main_thread(lambda: self.bar.update_ui_func(self.func, pretty_text))
+            execute_on_main_thread(
+                lambda: self.bar.update_ui_func(self.func, pretty_text)
+            )
 
     # ui stuff
 
@@ -265,32 +279,46 @@ class LLMDecompSidebarWidget(SidebarWidget):
         self.editor.setHtml(highlighted)
 
     def _update(self):
+        """
+        Refresh sidebar whenever the cursor moves or the view changes.
+
+        Fixes:
+        ▸ Guard against cases where the current address is NOT inside any
+          discovered function (bn.get_functions_containing returns []).
+        ▸ Avoid repeated work if we’re still in the same function.
+        """
+        # ── Early-outs ────────────────────────────────────────────────────────────
         if not self.frame or not self.bv:
             return
+
         view = self.frame.getCurrentViewInterface()
         addr = view.getCurrentOffset()
-        if addr == self.here:
+
+        if addr == self.here:               # cursor hasn’t moved
             return
         self.here = addr
-        func = self.bv.get_functions_containing(addr)[0]
 
-        if self.f == func:
+        # ── Robust lookup ────────────────────────────────────────────────────────
+        funcs = self.bv.get_functions_containing(addr)
+        if not funcs:
+            # Cursor is in padding / header / data region → just clear pane.
+            self.editor.setHtml("")
+            self.f = None
             return
 
+        func = funcs[0]
+        if self.f == func:                  # already displaying this function
+            return
         self.f = func
 
+        # ── Cached? ──────────────────────────────────────────────────────────────
         if func.name in self.cache:
-            print("Cache hit for ", func.name)
             self.update_ui_func(func, self.cache[func.name])
             return
 
-        print(__file__)
-        print(os.environ)
-        print(f"starting Claude for {func.name}...")
-
+        # ── Kick off background Claude job ───────────────────────────────────────
         task = ClaudeRunner(self)
         task.start()
-
 
     def contextMenuEvent(self, event):
         # if you want a right-click menu later
