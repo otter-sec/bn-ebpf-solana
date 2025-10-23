@@ -12,7 +12,7 @@ Tested on Binary Ninja `5.0.7486-Stable`
 
 This is only needed if you wish to tinker with the plugin to modify it.
 
-Clone this [repo](https://github.com/otter-sec/bn-ebpf-solana) in your Binja `plugins` folder, located in the [user folder](https://docs.binary.ninja/guide/index.html#user-folder).
+Clone this [repo](https://github.com/otter-sec/bn-ebpf-solana), aswell as the [mcp plugin repo](https://github.com/fosdickio/binary_ninja_mcp), in your Binja `plugins` folder, located in the [user folder](https://docs.binary.ninja/guide/index.html#user-folder).
 
 Now install the requirements :
 - either by running `Install python3 module` in Binja's `command palette` (Ctrl + P) and install the following modules
