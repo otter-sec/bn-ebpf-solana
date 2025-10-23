@@ -146,7 +146,8 @@ class SolanaView(BinaryView):
         # Keep track of syscalls for patching
         self.syscalls = {}
 
-    def detect_id(self):
+    def post_analysis(self):
+        self.get_function_at(self.start).name = "entrypoint"
         # analyze the entry func
         for function in self.functions:
             if function.name.endswith("::entry") and "DebugList" not in function.name:
@@ -233,7 +234,9 @@ class SolanaView(BinaryView):
         self.add_user_section("heap", 3 << 32, 0x8000, SectionSemantics.ReadWriteDataSectionSemantics)
         self.add_user_section("input", 4 << 32, 0x8000, SectionSemantics.ReadWriteDataSectionSemantics)
 
-        
+
+        self.add_entry_point(self.start)
+
         # Special extern section with syscalls.
         self.add_auto_section('extern', EXTERN_START, EXTERN_SIZE, SectionSemantics.ReadOnlyCodeSectionSemantics)
 
@@ -263,6 +266,14 @@ class SolanaView(BinaryView):
                     0x95,0,0,0,0,0,0,0 # exit
                 ]))
 
+                # define this to avoid binja mistaking it for the entrypoint
+                self.define_auto_symbol(Symbol(
+                    SymbolType.FunctionSymbol,
+                    pos,
+                    "extern_syscall"
+                ))
+
+
                 if s.name in FUNCTION_SIGS:
                     f = self.get_function_at(pos)
                     if f is not None:
@@ -273,6 +284,7 @@ class SolanaView(BinaryView):
         for s in p.sections:
             if s.size != 0:
                 self.add_user_section(s.name, (1 << 32) + s.offset, s.size, SectionSemantics.ReadOnlyCodeSectionSemantics)
+
 
         # Track syscall locations and types
         self.syscall_info = {}
@@ -352,9 +364,11 @@ class SolanaView(BinaryView):
                     demangled_name
                 ))
 
+            
+
         self.fix_all_pointers()
        
-        self.add_analysis_completion_event(self.detect_id)
+        self.add_analysis_completion_event(self.post_analysis)
 
         return True
 
