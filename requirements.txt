@@ -7,3 +7,4 @@ pygments
 anchorpy  
 solana  
 solders
+base58

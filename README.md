@@ -2,7 +2,13 @@
 
 A pure-python Binary Ninja plugin for Solana EBPF.
 
-## Manual installation (advanced, latest features including MCP)
+## Regular install from plugin manager
+
+Be sure to install both `bn-ebpf-solana` and `binary_ninja_mcp` from the plugin manager
+
+Tested on Binary Ninja `5.0.7486-Stable`
+
+## Manual installation (advanced, latest features)
 
 This is only needed if you wish to tinker with the plugin to modify it.
 
@@ -21,6 +27,7 @@ pygments
 anchorpy  
 solana  
 solders
+base58
 ```
 
 - or by going to the [user folder](https://docs.binary.ninja/guide/index.html#user-folder) and installing the requirements.txt
@@ -31,13 +38,14 @@ Also for the MCP integration to work please install `mcp` globally (outside the 
 pip install mcp
 ```
 
+
 See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-reverse-engineering-solana/).
 
 **Instruction lifting!**
-![](/assets/lift.png)
+![](https://github.com/otter-sec/bn-ebpf-solana/blob/master/assets/lift.png?raw=true)
 
 **Solana SDK Structures!**
-![](/assets/struct.png)
+![](https://github.com/otter-sec/bn-ebpf-solana/blob/master/assets/struct.png?raw=true)
 
 Copy this directory into your Binary Ninja plugins folder and restart.
 
