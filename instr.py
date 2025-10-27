@@ -39,13 +39,13 @@ def il_cond_branch(il: LowLevelILFunction, cond, tdest, fdest):
     if f_target is None:
         needs_f = True
         f_target = LowLevelILLabel()
-    
+
     il.append(il.if_expr(cond, t_target, f_target))
 
     if needs_t:
         il.mark_label(t_target)
         il.append(il.jump(tdest))
-    
+
     if needs_f:
         il.mark_label(f_target)
 
@@ -79,7 +79,7 @@ def lddw(dst, imm):
         ],
         info=InstructionInfo(length=16),
         llil=lambda il: il.append(
-            il.set_reg(8, f'r{dst}', 
+            il.set_reg(8, f'r{dst}',
                 il.const(8, imm)
             )
         )
@@ -93,9 +93,9 @@ def ld(ldop, dst, src, imm):
 def ldx(dst, src, off, sz):
     soff = signed(16, off)
 
-    inner = lambda il: il.load(SZ_MAP[sz], 
-        il.add(8, 
-            il.reg(8, f'r{src}'), 
+    inner = lambda il: il.load(SZ_MAP[sz],
+        il.add(8,
+            il.reg(8, f'r{src}'),
             il.sign_extend(8, il.const(2, off))
         )
     )
@@ -104,7 +104,7 @@ def ldx(dst, src, off, sz):
 
     return Instruction(
         text=[
-            tI(f'ldx{SZ_NAME[sz]}'), tT(' '), tR(f'r{dst}'), tT(', '), 
+            tI(f'ldx{SZ_NAME[sz]}'), tT(' '), tR(f'r{dst}'), tT(', '),
             tM('['), tR(f'r{src}'), (tS('+') if soff > 0 else tS('-')), tN(str(abs(soff)), abs(soff)), tE(']')
         ],
         info=InstructionInfo(length=8),
@@ -127,8 +127,8 @@ def st(dst, off, imm, sz):
         llil=lambda il: il.append(
             il.store(
                 SZ_MAP[sz],
-                il.add(8, 
-                    il.reg(8, f'r{dst}'), 
+                il.add(8,
+                    il.reg(8, f'r{dst}'),
                     il.sign_extend(8, il.const(2, off))
                 ),
                 il.const(SZ_MAP[sz], tr_imm)
@@ -151,8 +151,8 @@ def stx(dst, src, off, sz):
         llil=lambda il: il.append(
             il.store(
                 SZ_MAP[sz],
-                il.add(8, 
-                    il.reg(8, f'r{dst}'), 
+                il.add(8,
+                    il.reg(8, f'r{dst}'),
                     il.sign_extend(8, il.const(2, off))
                 ),
                 v(il)
@@ -185,6 +185,71 @@ def signed(size, val):
         return val
 
 
+def alu32(op, s, dst, src, imm) -> Instruction:
+    if op in ALU_OPS:
+        name, fn = ALU_OPS[op]
+        return Instruction(
+            text=[tI(name+"32"), tT(' '), tR(f'r{dst}'), tT(', '), (tR(f'r{src}') if s else tN(hex(signed(32, imm)), signed(32, imm)))],
+            info=InstructionInfo(length=8),
+            llil=lambda il: il.append(
+                il.set_reg(
+                    8,
+                    f'r{dst}',
+                    il.zero_extend(
+                        8,
+                        fn(
+                            il,
+                            il.reg(4, f'r{dst}'),
+                            il.reg(4, f'r{src}') if s else il.const(4, imm),
+                            4,
+                        )
+                    )
+                )
+            )
+        )
+    elif op == 0xd:  # bswap
+        size = imm
+        mask_expr = lambda il: il.const(8, (1 << (size * 8)) - 1)
+        if s == 0:  # mask
+            name = f'le{size}'
+            fn = lambda il,a: il.and_expr(8,a,mask_expr(il))
+        else:  # byte swap
+            name = f'be{size}'
+            byte_cnt = size // 8
+            # Generate byte extract and shuffles
+            extract = [
+                lambda il,a,i=i:
+                il.shift_left(8,
+                    il.and_expr(8,
+                        il.logical_shift_right(8, a, il.const(8, i * 8)),
+                        il.const(8, 0xff)
+                    ),
+                    il.const(8, (byte_cnt - 1 - i) * 8)
+                )
+                for i in range(byte_cnt)
+            ]
+            # Join subexpressions into a chain
+            fn = lambda il,a,e=extract: il.or_expr(8,e[0](il,a), e[1](il,a))
+            for i in range(2,byte_cnt):
+                fn = lambda il,a,e=extract,fn=fn,i=i: il.or_expr(8,fn(il,a), e[i](il,a))
+        return Instruction(
+            text=[tI(name), tT(' '), tR(f'r{dst}')],
+            info=InstructionInfo(length=8),
+            llil=lambda il: il.append(
+                il.set_reg(
+                    8,
+                    f'r{dst}',
+                    fn(
+                        il,
+                        il.reg(8, f'r{dst}'),
+                    )
+                )
+            )
+        )
+    else:
+        return None
+
+
 def alu64(op, s, dst, src, imm) -> Instruction:
     if not op in ALU_OPS:
         return None
@@ -196,8 +261,8 @@ def alu64(op, s, dst, src, imm) -> Instruction:
         info=InstructionInfo(length=8),
         llil=lambda il: il.append(
             il.set_reg(
-                8, 
-                f'r{dst}', 
+                8,
+                f'r{dst}',
                 fn(
                     il,
                     il.reg(8, f'r{dst}'),
@@ -295,7 +360,7 @@ def branch_type(op, s, dst, src, imm, off, addr) -> Instruction:
                 tT(' '), tR(f'r{dst}'), tT(', '), (tR(f'r{src}') if s else tN(hex(signed(32, imm)), signed(32, imm)))],
             info=info,
             llil=lambda il: il_cond_branch(
-                il, 
+                il,
                 cond(
                     il,
                     il.reg(8, f'r{dst}'),
@@ -332,7 +397,7 @@ def decode(data: bytes, addr: int) -> Instruction:
         if ldop == 3: # lddw
             if len(data) < 16:
                 return None
-            
+
             imm2 = int.from_bytes(data[12:16], 'little')
             return lddw(dst, imm | (imm2 << 32))
         else:
@@ -341,9 +406,7 @@ def decode(data: bytes, addr: int) -> Instruction:
     elif clz == 0b010: return st(dst, off, imm, sz)
     elif clz == 0b011: return stx(dst, src, off, sz)
     elif clz == 0b111: return alu64(aop, s, dst, src, imm)
-    elif clz == 0b100:
-        # 32-bit ALU
-        pass
+    elif clz == 0b100: return alu32(aop, s, dst, src, imm)
     elif clz == 0b101: return branch_type(aop, s, dst, src, imm, off, addr)
 
 
