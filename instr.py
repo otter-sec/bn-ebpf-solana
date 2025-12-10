@@ -184,6 +184,69 @@ def signed(size, val):
     else:
         return val
 
+def alu32(op, s, dst, src, imm) -> Instruction:
+    if op in ALU_OPS:
+        name, fn = ALU_OPS[op]
+        return Instruction(
+            text=[tI(name+"32"), tT(' '), tR(f'r{dst}'), tT(', '), (tR(f'r{src}') if s else tN(hex(signed(32, imm)), signed(32, imm)))],
+            info=InstructionInfo(length=8),
+            llil=lambda il: il.append(
+                il.set_reg(
+                    8,
+                    f'r{dst}',
+                    il.zero_extend(
+                        8,
+                        fn(
+                            il,
+                            il.reg(4, f'r{dst}'),
+                            il.reg(4, f'r{src}') if s else il.const(4, imm),
+                            4,
+                        )
+                    )
+                )
+            )
+        )
+    elif op == 0xd:  # bswap
+        size = imm
+        mask_expr = lambda il: il.const(8, (1 << (size * 8)) - 1)
+        if s == 0:  # mask
+            name = f'le{size}'
+            fn = lambda il,a: il.and_expr(8,a,mask_expr(il))
+        else:  # byte swap
+            name = f'be{size}'
+            byte_cnt = size // 8
+            # Generate byte extract and shuffles
+            extract = [
+                lambda il,a,i=i:
+                il.shift_left(8,
+                    il.and_expr(8,
+                        il.logical_shift_right(8, a, il.const(8, i * 8)),
+                        il.const(8, 0xff)
+                    ),
+                    il.const(8, (byte_cnt - 1 - i) * 8)
+                )
+                for i in range(byte_cnt)
+            ]
+            # Join subexpressions into a chain
+            fn = lambda il,a,e=extract: il.or_expr(8,e[0](il,a), e[1](il,a))
+            for i in range(2,byte_cnt):
+                fn = lambda il,a,e=extract,fn=fn,i=i: il.or_expr(8,fn(il,a), e[i](il,a))
+        return Instruction(
+            text=[tI(name), tT(' '), tR(f'r{dst}')],
+            info=InstructionInfo(length=8),
+            llil=lambda il: il.append(
+                il.set_reg(
+                    8,
+                    f'r{dst}',
+                    fn(
+                        il,
+                        il.reg(8, f'r{dst}'),
+                    )
+                )
+            )
+        )
+    else:
+        return None
 
 def alu64(op, s, dst, src, imm) -> Instruction:
     if not op in ALU_OPS:
@@ -341,9 +404,7 @@ def decode(data: bytes, addr: int) -> Instruction:
     elif clz == 0b010: return st(dst, off, imm, sz)
     elif clz == 0b011: return stx(dst, src, off, sz)
     elif clz == 0b111: return alu64(aop, s, dst, src, imm)
-    elif clz == 0b100:
-        # 32-bit ALU
-        pass
+    elif clz == 0b100: return alu32(aop, s, dst, src, imm)
     elif clz == 0b101: return branch_type(aop, s, dst, src, imm, off, addr)
 
 
