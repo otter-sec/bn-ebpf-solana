@@ -95,10 +95,11 @@ class SolanaView(BinaryView):
             return super().perform_read(addr, length)
 
     def perform_write(self, addr: int, data: bytes) -> int:
-        # Override with custom extern data.
         if addr >= EXTERN_START and addr < EXTERN_START + EXTERN_SIZE:
             self.extern_data[addr - EXTERN_START : addr + len(data) - EXTERN_START] = list(data)
             return len(data)
+        elif addr >= (1 << 32):
+            return self.parent_view.write(addr - (1 << 32), data)
         else:
             return super().perform_write(addr, data)
 
@@ -185,12 +186,32 @@ class SolanaView(BinaryView):
                 'needs_pointer_adjustment': name in STRING_POINTER_SYSCALLS
             }
 
-        # Apply relocations.
-        for r in p.dynamic_relocations:
-            addr = r.address + (1 << 32)
+        sym_list = list(p.symbols)
+
+        rel_section = None
+        for s in p.sections:
+            if s.name == '.rel.dyn':
+                rel_section = s
+                break
+
+        if rel_section is None:
+            print('No .rel.dyn section found')
+            return True
+
+        rel_data = bytes(rel_section.content)
+
+        for i in range(0, len(rel_data), 16):
+            r_offset = int.from_bytes(rel_data[i:i+8], 'little')
+            r_info = int.from_bytes(rel_data[i+8:i+16], 'little')
+            rel_type = r_info & 0xFFFFFFFF
+            sym_idx = r_info >> 32
+
+            addr = r_offset + (1 << 32)
+            sym_name = sym_list[sym_idx].name if sym_idx < len(sym_list) else ""
 
             try:
-                if r.type == Relocation.TYPE.BPF_64_64:
+                print(f'reloc @ {hex(addr)} type={rel_type} sym={sym_name}')
+                if rel_type == 1:
                     lo = int.from_bytes(self.read(addr + 4, 4), 'little')
                     hi = int.from_bytes(self.read(addr + 12, 4), 'little')
                     v = (hi << 32) + lo
@@ -204,33 +225,39 @@ class SolanaView(BinaryView):
                     hi = v >> 32
                     self.write(addr + 4, lo.to_bytes(4, 'little'))
                     self.write(addr + 12, hi.to_bytes(4, 'little'))
-                elif r.type == Relocation.TYPE.BPF_64_32:
-                    if r.symbol.is_function:
-                        # BPF Function
-                        target = r.symbol.value + (1 << 32)
+                elif rel_type == 8:
+                    lo = int.from_bytes(self.read(addr + 4, 4), 'little')
+                    hi = int.from_bytes(self.read(addr + 12, 4), 'little')
+                    v = (hi << 32) + lo
+                    if v < 0x100000000:
+                        v += (1 << 32)
+                        lo = v & 0xffffffff
+                        hi = v >> 32
+                        self.write(addr + 4, lo.to_bytes(4, 'little'))
+                        self.write(addr + 12, hi.to_bytes(4, 'little'))
+                elif rel_type == 10:
+                    sym = sym_list[sym_idx] if sym_idx < len(sym_list) else None
+                    if sym and sym.is_function:
+                        target = sym.value + (1 << 32)
                         off = (target - (addr + 8)) // 8
                         if off < 0:
                             off += 0x100000000
                         self.write(addr + 4, off.to_bytes(4, 'little'))
                     else:
-                        # Syscall
-                        name = r.symbol.name
-                        if name in extern_map:
-                            idx = extern_map[name]
+                        if sym_name in extern_map:
+                            idx = extern_map[sym_name]
                             pos = EXTERN_START + (idx * 16)
                             self.write(addr + 4, pos.to_bytes(4, 'little'))
-                            self.write(addr + 1, bytes([2 << 4])) # Mark as absolute extern
-                            print(f'syscall @ {hex(addr)} - {name}')
-                            
-                            # Store syscall location for later patching
+                            self.write(addr + 1, bytes([2 << 4]))
+                            print(f'syscall @ {hex(addr)} - {sym_name}')
                             self.syscalls[addr] = {
-                                'name': name,
-                                'needs_pointer_adjustment': name in STRING_POINTER_SYSCALLS
+                                'name': sym_name,
+                                'needs_pointer_adjustment': sym_name in STRING_POINTER_SYSCALLS
                             }
                         else:
-                            print('Unhandled syscall: ', name)
+                            print('Unhandled syscall: ', sym_name)
             except Exception as e:
-                print('Unhandled relocation type: ', r)
+                print(f'Relocation error: {e}')
 
         # Apply function symbols with demangling
         for s in p.symbols:
