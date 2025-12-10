@@ -17,3 +17,5 @@ solana.register('Solana')
 
 from .solanaview import SolanaView
 SolanaView.register()
+
+from . import fix_strings
