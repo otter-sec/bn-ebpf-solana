@@ -21,7 +21,8 @@
     ],
     "dependencies": {
         "pip": [
-            "lief"
+            "lief",
+            "rust-demangler"
         ]
     },
     "installinstructions": {

@@ -1,1 +1,2 @@
 lief
+rust-demangler
