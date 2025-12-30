@@ -219,7 +219,18 @@ class SolanaView(BinaryView):
 
         self.load_types()
 
-        p = lief.ELF.parse(list(self.data[:]))
+        data_copy = list(self.data[:])
+        # Replace SBF with BPF in e_machine so that lief parses relocations properly
+        E_MACHINE_LEN = 2
+        E_MACHINE_SBF = list(0x107.to_bytes(E_MACHINE_LEN, 'little'))
+        E_MACHINE_BPF = list(0x0f7.to_bytes(E_MACHINE_LEN, 'little'))
+        E_MACHINE_OFFSET = 0x12
+        E_MACHINE = slice(E_MACHINE_OFFSET, E_MACHINE_OFFSET + E_MACHINE_LEN)
+
+        if data_copy[E_MACHINE] == E_MACHINE_SBF:
+            data_copy[E_MACHINE] = E_MACHINE_BPF
+
+        p = lief.parse(data_copy)
         
         # Add LOAD segments
         for s in p.segments:
