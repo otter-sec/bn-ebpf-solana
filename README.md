@@ -39,7 +39,7 @@ pip install mcp
 ```
 
 
-See our [introductory blog post](https://osec.io/blog/tutorials/2022-08-27-reverse-engineering-solana/).
+See our [introductory blog post](https://osec.io/blog/2022-08-27-reverse-engineering-solana).
 
 **Instruction lifting!**
 ![](https://github.com/otter-sec/bn-ebpf-solana/blob/master/assets/lift.png?raw=true)
