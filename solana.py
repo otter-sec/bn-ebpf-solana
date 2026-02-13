@@ -1,4 +1,3 @@
-
 from binaryninja import Platform
 
 

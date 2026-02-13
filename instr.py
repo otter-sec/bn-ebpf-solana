@@ -1,9 +1,8 @@
 
-from typing import Callable, Dict, Tuple, List
+from typing import Callable, List
 from dataclasses import dataclass
-from binaryninja.function import RegisterInfo, InstructionInfo, InstructionTextToken
-from binaryninja.enums import InstructionTextTokenType, BranchType, LowLevelILOperation
-from binaryninja.architecture import Architecture
+from binaryninja.function import InstructionInfo, InstructionTextToken
+from binaryninja.enums import InstructionTextTokenType, BranchType
 from binaryninja.lowlevelil import LowLevelILLabel, LowLevelILFunction
 
 # binary ninja text helpers
