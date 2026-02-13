@@ -62,16 +62,18 @@ if SERVER_PATH is None:
 #settings
 
 settings = Settings()
-setting_props = properties = f'{{"title" : "Anthropic API Key", "description" : "Your Anthropic API key for LLM requests", "type" : "string", "default" : ""}}'
-setting_props_2 = properties = f'{{"title" : "Context for Solana MCP", "description" : "Absolute path to extra context to be provided, like an IDL", "type" : "string", "default" : ""}}'
 settings.register_group("bn-ebpf-solana", "MCP settings")
 settings.register_setting(
-    "bn-ebpf-solana.context",           # identifier
-    setting_props_2
+    "bn-ebpf-solana.anthropic_api_key",
+    '{"title": "Anthropic API Key", "description": "Your Anthropic API key for LLM requests", "type": "string", "default": ""}'
 )
 settings.register_setting(
-    "bn-ebpf-solana.anthropic_api_key",           # identifier
-    setting_props
+    "bn-ebpf-solana.model",
+    '{"title": "Model", "description": "Anthropic model ID to use", "type": "string", "default": "claude-sonnet-4-5"}'
+)
+settings.register_setting(
+    "bn-ebpf-solana.context",
+    '{"title": "Context for Solana MCP", "description": "Absolute path to extra context to be provided, like an IDL", "type": "string", "default": ""}'
 )
 
 
@@ -130,7 +132,7 @@ class ClaudeRunner(BackgroundTaskThread):
 
         # we rely on a forked version of the existing plugin to implement an mcp server
         # how do we reliably get its location?
-        async with Client(PythonStdioTransport(SERVER_PATH)) as cli:
+        async with Client(PythonStdioTransport(SERVER_PATH, python_cmd="python3")) as cli:
             tools = await cli.list_tools()
             specs = [mcp_to_anthropic(t) for t in tools]
 
@@ -163,8 +165,8 @@ class ClaudeRunner(BackgroundTaskThread):
                 for call in tool_calls:
                     try:
                         res = await cli.call_tool(call.name, call.input)
-                        payload = json.dumps(blocks_to_str(res), ensure_ascii=False)
-                    except mcp_exc.MCPError as e:      # bad args, runtime error, etc.
+                        payload = json.dumps(blocks_to_str(res.content), ensure_ascii=False)
+                    except mcp_exc.McpError as e:      # bad args, runtime error, etc.
                         payload = json.dumps({"error": str(e)}, ensure_ascii=False)
 
                     results.append({
@@ -200,7 +202,7 @@ class ClaudeRunner(BackgroundTaskThread):
                 extra_context = f.read()
 
         return claude.messages.create(
-            model   = "claude-3-5-sonnet-20241022",
+            model   = settings.get_string("bn-ebpf-solana.model"),
             system  = open(Path(__file__).parent / "system.txt").read() + extra_context, 
             messages     = msgs,
             tools        = specs,

@@ -22,6 +22,7 @@
         "pip": [
             "lief",
             "fastmcp",
+            "requests",
             "tenacity",
             "rust_demangler",
             "pygments",
