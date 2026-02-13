@@ -1,5 +1,5 @@
-import os
 from binaryninja import (
+    RepositoryManager,
     Settings,
     BackgroundTaskThread,
     execute_on_main_thread
@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QRectF
 from PySide6.QtGui import QImage, QPainter, QFont, QColor
 from PySide6.QtWidgets import QTextEdit, QVBoxLayout
 from binaryninjaui import (
-    SidebarWidget, SidebarWidgetType, Sidebar, UIActionHandler,
+    SidebarWidget, SidebarWidgetType, UIActionHandler,
     SidebarWidgetLocation, SidebarContextSensitivity
 )
 from pygments import highlight
@@ -21,7 +21,7 @@ from anthropic import Anthropic, AuthenticationError, RateLimitError, APIStatusE
 from fastmcp import exceptions as mcp_exc
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-import sys, os
+import sys, os, importlib
 
 from .idl_utils import fetch_idl_anchorpy
 
@@ -37,27 +37,41 @@ for stream_name in ("stdout", "stderr"):
 
 from fastmcp.client import Client
 from fastmcp.client.transports import PythonStdioTransport
-from pathlib import Path
-
-import zlib, sys
-from solders.pubkey import Pubkey
-from solana.rpc.async_api import AsyncClient
 
 from .mcp_utils import *
 
 DEFAULT_RPC = "https://api.mainnet-beta.solana.com"
 
-base_path = Path(__file__).parent.parent
-
-SERVER_PATH = next(
-    (mcp_dir / "bridge" / "binja_mcp_bridge.py"
-     for mcp_dir in base_path.glob("*binary_ninja_mcp")
-     if (mcp_dir / "bridge" / "binja_mcp_bridge.py").exists()),
+manager = RepositoryManager()
+mcp_plugin = next(
+    (plugin
+    for plugin in manager.plugins['community']
+    if plugin.path == "fosdickio_binary_ninja_mcp"),
     None
 )
 
-if SERVER_PATH is None:
+mcp_module_name = None
+if mcp_plugin:
+    if not mcp_plugin.installed:
+        # TODO: user pop-up?
+        # mcp_plugin.install()
+        pass
+    else:
+        mcp_module_name = mcp_plugin.path
+
+if mcp_module_name is None and importlib.util.find_spec("binary_ninja_mcp") is not None:
+    mcp_module_name = "binary_ninja_mcp"
+
+if mcp_module_name is None:
     raise FileNotFoundError("Did you install binary_ninja_mcp via Git or the plugin manager?")
+
+# TODO: use ModuleSpec instead here instead of the name?
+bridge_spec = importlib.util.find_spec(".bridge.binja_mcp_bridge", mcp_module_name)
+SERVER_PATH = bridge_spec.origin
+if SERVER_PATH is None:
+    raise FileNotFoundError("Unable to find MCP bridge module")
+
+SYSTEM_CONTEXT = (importlib.resources.files() / "system.txt").read_text()
 
 #settings
 
@@ -195,13 +209,13 @@ class ClaudeRunner(BackgroundTaskThread):
         extra_context_path = settings.get_string("bn-ebpf-solana.context")
         extra_context = ""
 
-        if(extra_context_path != ""):
+        if extra_context_path != "":
             with open(extra_context_path) as f:
                 extra_context = f.read()
 
         return claude.messages.create(
-            model   = "claude-3-5-sonnet-20241022",
-            system  = open(Path(__file__).parent / "system.txt").read() + extra_context, 
+            model        = "claude-3-5-sonnet-20241022",
+            system       = SYSTEM_CONTEXT + extra_context,
             messages     = msgs,
             tools        = specs,
             max_tokens   = 1_200,
@@ -209,8 +223,6 @@ class ClaudeRunner(BackgroundTaskThread):
         )
 
 class LLMDecompSidebarWidget(SidebarWidget):
-
-
     def detect_id(self):
         # analyze the entry func
         for function in self.bv.functions:
@@ -362,6 +374,3 @@ class LLMDecompSidebarWidgetType(SidebarWidgetType):
 
     def contextSensitivity(self):
         return SidebarContextSensitivity.SelfManagedSidebarContext
-
-# Register the sidebar widget type
-Sidebar.addSidebarWidgetType(LLMDecompSidebarWidgetType())

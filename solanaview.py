@@ -1,34 +1,12 @@
 import os
-import pathlib
+import importlib
 from lief.ELF import Relocation
-from binaryninja import BinaryView, SegmentFlag, SectionSemantics, Symbol, SymbolType, Platform, BackgroundTaskThread, execute_on_main_thread
+from binaryninja import BinaryView, SegmentFlag, SectionSemantics, Symbol, SymbolType, Platform
 import binaryninja as bn
 import lief
 from .idl_utils import fetch_idl_anchorpy
 import rust_demangler  # Import rust_demangle for demangling
-import re
-import html
-import time
-from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QImage, QPainter, QFont, QColor
-from PySide6.QtWidgets import QTextEdit, QVBoxLayout
-from binaryninjaui import (
-    SidebarWidget, SidebarWidgetType, Sidebar, UIActionHandler,
-    SidebarWidgetLocation, SidebarContextSensitivity
-)
-from pygments import highlight
-from pygments.lexers import RustLexer
-from pygments.formatters import HtmlFormatter
-import asyncio, json, os
-from anthropic import Anthropic
-import asyncio, json
-from typing import Any, Dict
-from anthropic import RateLimitError, APIStatusError
-from fastmcp import exceptions as mcp_exc
-from tenacity import retry, wait_exponential_jitter, stop_after_attempt, wait_random_exponential
 import sys, os
-
-from .sidebar_ui import *
 
 # binja screws up stdout and stderr, fastmcp doesnt like that
 def _safe_fd():
@@ -38,10 +16,6 @@ for stream_name in ("stdout", "stderr"):
     stream = getattr(sys, stream_name, None)
     if stream is not None and not hasattr(stream, "fileno"):
         stream.fileno = _safe_fd  
-
-
-from fastmcp.client import Client
-from fastmcp.client.transports import PythonStdioTransport
 
 # were sure to have an entry func, and we find the id in the first memcmp
 def find_entry_memcmp_second_arg(bv):
@@ -189,9 +163,7 @@ class SolanaView(BinaryView):
             return super().perform_write(addr, data)
 
     def load_types(self):
-        plugin_root = pathlib.Path(os.path.realpath(__file__)).parent
-
-        types = open(plugin_root / 'types.c', 'r').read()
+        types = (importlib.resources.files() / 'types.c').read_text()
 
         info = self.parse_types_from_string(types)
 

@@ -1,5 +1,4 @@
 from binaryninja.architecture import Architecture
-from binaryninja.platform import Platform
 from binaryninja.function import RegisterInfo, InstructionInfo
 
 from .instr import decode, tT

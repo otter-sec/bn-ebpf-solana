@@ -1,6 +1,11 @@
-from binaryninja import CallingConvention, Architecture, Platform, PluginCommand
-from binaryninja.typelibrary import TypeLibrary
-from binaryninja.types import Type, TypeBuilder
+from binaryninja import CallingConvention, Architecture, log_error_for_exception
+
+try:
+    from binaryninjaui import Sidebar
+    from .sidebar_ui import LLMDecompSidebarWidgetType
+    Sidebar.addSidebarWidgetType(LLMDecompSidebarWidgetType())
+except Exception:
+    log_error_for_exception("Failed to load LLM Decompiler", "bn-ebpf-solana")
 
 from .idl_utils import *
 from .ebpf import EBPF
