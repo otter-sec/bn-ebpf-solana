@@ -163,7 +163,7 @@ class SolanaView(BinaryView):
             return super().perform_write(addr, data)
 
     def load_types(self):
-        types = (importlib.resources.files() / 'types.c').read_text()
+        types = (importlib.resources.files(__package__) / 'types.c').read_text()
 
         info = self.parse_types_from_string(types)
 

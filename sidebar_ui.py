@@ -71,7 +71,7 @@ SERVER_PATH = bridge_spec.origin
 if SERVER_PATH is None:
     raise FileNotFoundError("Unable to find MCP bridge module")
 
-SYSTEM_CONTEXT = (importlib.resources.files() / "system.txt").read_text()
+SYSTEM_CONTEXT = (importlib.resources.files(__package__) / "system.txt").read_text()
 
 #settings
 
