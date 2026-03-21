@@ -65,14 +65,7 @@ def program_id_from_entry(func) -> bytes | None:
     Try to recover the hard-coded 32-byte program ID in an Anchor entrypoint.
     Returns raw bytes or None if nothing matched.
     """
-    offs = collect_load_cmps(None, func)
-    if len(offs) == 4:
-        raw = (offs[0].to_bytes(8, "little") +
-               offs[8].to_bytes(8, "little") +
-               offs[16].to_bytes(8, "little") +
-               offs[24].to_bytes(8, "little"))
-        return raw
-    return None
+    return collect_load_cmps(None, func)
 
 # were sure to have an entry func, and we find the id in the first memcmp
 def find_entry_memcmp_second_arg(bv, func):
