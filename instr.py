@@ -207,6 +207,10 @@ def alu32(op, s, dst, src, imm) -> Instruction:
             )
         )
     elif op == 0xd:  # bswap
+        # Only 16/32/64 are valid widths. Data decoded as code can carry a huge
+        # imm, which would build imm//8 lambdas below and hang Binary Ninja.
+        if imm not in (16, 32, 64):
+            return None
         size = imm
         mask_expr = lambda il: il.const(8, (1 << (size * 8)) - 1)
         if s == 0:  # mask
