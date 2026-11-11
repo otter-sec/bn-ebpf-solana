@@ -208,7 +208,7 @@ def alu32(op, s, dst, src, imm) -> Instruction:
         )
     elif op == 0xd:  # bswap
         size = imm
-        mask_expr = lambda il: il.const(8, (1 << (size * 8)) - 1)
+        mask_expr = lambda il: il.const(8, (1 << size) - 1)
         if s == 0:  # mask
             name = f'le{size}'
             fn = lambda il,a: il.and_expr(8,a,mask_expr(il))
