@@ -307,6 +307,15 @@ def branch_type(op, s, dst, src, imm, off, addr) -> Instruction:
             llil=lambda il: il_jump(il, target)
         )
     elif op == 8: # call
+        if s == 1:  # callx: sBPF v0/v1 encode the target register in imm
+            if imm > 10:
+                return None
+            reg = f'r{imm}'
+            return Instruction(
+                text=[tI('callx'), tT(' '), tR(reg)],
+                info=InstructionInfo(length=8),
+                llil=lambda il: il.append(il.call(il.reg(8, reg)))
+            )
         target = addr + 8 + (signed(32, imm) * 8)
         info = InstructionInfo(length=8)
 
