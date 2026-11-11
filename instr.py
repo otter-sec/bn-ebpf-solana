@@ -114,7 +114,7 @@ def ldx(dst, src, off, sz):
 
 
 def st(dst, off, imm, sz):
-    tr_imm = imm & ((1 << (SZ_MAP[sz])) - 1)
+    tr_imm = signed(32, imm) & 0xffffffffffffffff if SZ_MAP[sz] == 8 else imm & ((1 << (SZ_MAP[sz] * 8)) - 1)
     soff = signed(16, off)
     return Instruction(
         text=[
@@ -169,7 +169,7 @@ ALU_OPS = {
     5: ['and', lambda il,a,b,z: il.and_expr(z,a,b)],
     6: ['lsh', lambda il,a,b,z: il.shift_left(z,a,b)],
     7: ['rsh', lambda il,a,b,z: il.logical_shift_right(z,a,b)],
-    8: ['neg', lambda il,a,b,z: il.not_expr(z,b)],
+    8: ['neg', lambda il,a,b,z: il.neg_expr(z,a)],
     9: ['mod', lambda il,a,b,z: il.mod_unsigned(z,a,b)],
     0xa: ['xor', lambda il,a,b,z: il.xor_expr(z,a,b)],
     0xb: ['mov', lambda il,a,b,z: b],
