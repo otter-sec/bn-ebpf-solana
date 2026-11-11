@@ -114,7 +114,7 @@ def ldx(dst, src, off, sz):
 
 
 def st(dst, off, imm, sz):
-    tr_imm = imm & ((1 << (SZ_MAP[sz])) - 1)
+    tr_imm = signed(32, imm) & 0xffffffffffffffff if SZ_MAP[sz] == 8 else imm & ((1 << (SZ_MAP[sz] * 8)) - 1)
     soff = signed(16, off)
     return Instruction(
         text=[
@@ -169,7 +169,7 @@ ALU_OPS = {
     5: ['and', lambda il,a,b,z: il.and_expr(z,a,b)],
     6: ['lsh', lambda il,a,b,z: il.shift_left(z,a,b)],
     7: ['rsh', lambda il,a,b,z: il.logical_shift_right(z,a,b)],
-    8: ['neg', lambda il,a,b,z: il.not_expr(z,b)],
+    8: ['neg', lambda il,a,b,z: il.neg_expr(z,a)],
     9: ['mod', lambda il,a,b,z: il.mod_unsigned(z,a,b)],
     0xa: ['xor', lambda il,a,b,z: il.xor_expr(z,a,b)],
     0xb: ['mov', lambda il,a,b,z: b],
@@ -208,7 +208,7 @@ def alu32(op, s, dst, src, imm) -> Instruction:
         )
     elif op == 0xd:  # bswap
         size = imm
-        mask_expr = lambda il: il.const(8, (1 << (size * 8)) - 1)
+        mask_expr = lambda il: il.const(8, (1 << size) - 1)
         if s == 0:  # mask
             name = f'le{size}'
             fn = lambda il,a: il.and_expr(8,a,mask_expr(il))
@@ -307,6 +307,15 @@ def branch_type(op, s, dst, src, imm, off, addr) -> Instruction:
             llil=lambda il: il_jump(il, target)
         )
     elif op == 8: # call
+        if s == 1:  # callx: sBPF v0/v1 encode the target register in imm
+            if imm > 10:
+                return None
+            reg = f'r{imm}'
+            return Instruction(
+                text=[tI('callx'), tT(' '), tR(reg)],
+                info=InstructionInfo(length=8),
+                llil=lambda il: il.append(il.call(il.reg(8, reg)))
+            )
         target = addr + 8 + (signed(32, imm) * 8)
         info = InstructionInfo(length=8)
 
